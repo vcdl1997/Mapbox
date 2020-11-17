@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+    <head>
+    	<meta charset="utf-8">
+    	<meta name="viewport" content="width=device-width, initial-scale=1"/>	
+    	<title>Mapbox</title>
+    	<link rel="shortcut icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/4/40/Round_Landmark_School_Icon_-_Transparent.svg/1024px-Round_Landmark_School_Icon_-_Transparent.svg.png" />
+    	<link href="https://api.mapbox.com/mapbox-gl-js/v1.11.1/mapbox-gl.css" rel="stylesheet" />
+        <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.0.2/mapbox-gl-directions.css" type="text/css"/>
+        <script src="https://api.mapbox.com/mapbox-gl-js/v1.11.1/mapbox-gl.js"></script>
+        <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.0.2/mapbox-gl-directions.js"></script>
+        <script src='https://npmcdn.com/@turf/turf/turf.min.js'></script>
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet"/>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script>
+        <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+        <style type="text/css">
+        	body{ margin: 0; position: absolute; }
+
+            /* MODAL */
+    		.modal.left .modal-dialog-school,
+    		.modal.right .modal-dialog-school { position: fixed; margin: auto; width: 320px; height: 100%; -webkit-transform: translate3d(0%, 0, 0); -ms-transform: translate3d(0%, 0, 0); -o-transform: translate3d(0%, 0, 0); transform: translate3d(0%, 0, 0); }
+    		.modal.left .modal-content-school,
+    		.modal.right .modal-content-school { height: 100%; overflow-y: auto; }
+    		.modal.left .modal-body,
+    		.modal.right .modal-body { padding: 15px 15px 80px; }
+    		.modal.left.fade .modal-dialog-school{ left: -320px; -webkit-transition: opacity 0.3s linear, left 0.3s ease-out; -moz-transition: opacity 0.3s linear, left 0.3s ease-out; -o-transition: opacity 0.3s linear, left 0.3s ease-out; transition: opacity 0.3s linear, left 0.3s ease-out; }
+    		.modal.left.fade.in .modal-dialog-school{ left: 0; }
+    		.modal-content-school { border-radius: 0; border: none; }
+    		.modal-header-school { border-bottom-color: #EEEEEE; background-color: #FAFAFA; }
+            @media (max-width: @screen-xs-min) { .modal-content-school { width: @modal-sm; }}
+
+            
+            /* MAPA */
+            #instructions{ position: absolute; margin: 20px; width: 25%; top: 5px; bottom: 20%; padding: 20px; background-color: rgba(0, 0, 0, 0.9); overflow-y: scroll; font-family: sans-serif; font-size: 0.8em; line-height: 2em; border-radius: 5px; color: white; }
+            .marker { background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/4/40/Round_Landmark_School_Icon_-_Transparent.svg/1024px-Round_Landmark_School_Icon_-_Transparent.svg.png'); background-size: 40px 40px; width: 40px; height: 40px; cursor: pointer; }
+            .pointA{ top: -30px; background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Person_icon_BLACK-01.svg/1200px-Person_icon_BLACK-01.svg.png'); background-size: 30px 30px; width: 30px; height: 30px; cursor: pointer; }
+            .pointB{ top: -30px; left: 8px; background-image: url('https://www.outsourcingadviser.com/wp-content/uploads/2018/03/red-flag.gif'); background-size: 30px 30px; width: 30px; height: 30px; cursor: pointer; }
+            .point-user-device{
+                top: -30px; left: 8px; background-image: url('https://support.lasers.leica-geosystems.com/lino/l2-l2G/gb/Content/Resources/Images/led_blinksred.gif'); background-size: 100px 50px; width: 100px; height: 50px; cursor: pointer;
+            }
+        </style>
+    </head>
+    <body>
+    	<div id="map"></div>
+    	<div id="instructions" style="display: none;"></div>
+        <div style="position: absolute; bottom: 0; left: 1%; top: 90%;">
+            <select id="user-device-select">
+                <option value="">Rastrear Usuários</option>
+            </select>
+        </div>
+    	<div style="position: absolute; bottom: 0; right: 1%; top: 90%;">
+    		<select id="radius-select">
+    			<option value="">Selecione o Raio</option>
+    			<option value="5">5 Km</option>
+    			<option value="10" selected>10 Km</option>
+    			<option value="25">25 Km</option>
+    			<option value="50">50 Km</option>
+    			<option value="100">100 Km</option>
+    			<option value="250">250 Km</option>
+    			<option value="500">500 Km</option>
+    			<option value="1000">1000 Km</option>
+    		</select>
+    	</div>
+    	<div>
+    		<button type="button" class="btn btn-modal-school-open hide" data-toggle="modal" data-target="#ModalSchool">
+    			Teste Modal
+    		</button>
+
+    		<!-- Modal -->
+    		<div class="modal left fade" id="ModalSchool" tabindex="-1" role="dialog" aria-labelledby="ModalSchoolLabel">
+    			<div class="modal-dialog modal-dialog-school" role="document">
+    				<div class="modal-content modal-content-school">
+    					<div class="modal-header modal-header-school">
+    						<button type="button" class="close  btn-modal-school-close" data-dismiss="modal" aria-label="Close">
+    							<span aria-hidden="true">&times;</span>
+    						</button>
+    						<h4 class="modal-title" id="ModalSchoolLabel"></h4>
+    					</div>
+    					<div class="modal-body">
+    						<div id="slideshow"></div><br>
+    						<div id="pi" style="font-size: 16px;"></div>
+    						<div id="execucao" style="font-size: 16px;"></div>
+    						<div id="situacao" style="font-size: 16px;"></div>
+    					</div>
+    					<div class="modal-footer" style="padding-bottom: 5px; padding-top: 5px; background: #3498db;">
+                            <section>
+                                <h5 style="text-align: left; font-weight: bolder; color: white;">Informe o ponto de partida: </h5>
+                                <div class="input-group" style="text-align: center;">
+                                    <span class="input-group-addon">
+                                        <span class="glyphicon glyphicon-record" aria-hidden="true" style="color: rgb(52, 152, 219);"></span>
+                                    </span>
+                                    <select class="form-control custom-select" id="select-origem" style="width: 95%;"></select>
+                                </div>
+                                <br>
+
+                                <h5 style="text-align: left; font-weight: bolder; color: white;">Informe o destino: </h5>
+                                <div class="input-group" style="text-align: center;">
+                                    <span class="input-group-addon">
+                                        <span class="glyphicon glyphicon-map-marker" aria-hidden="true" style="color: rgb(52, 152, 219);"></span>
+                                    </span>
+                                    <select class="form-control custom-select" id="select-destino" style="width: 95%;"></select>
+                                </div>
+                                <div style="text-align: center; margin-top: 5%;">
+                                    <button type="button" class="btn btn-success" onclick="preparaRota(event)">
+                                        <span class="glyphicon glyphicon-search" aria-hidden="true"></span>
+                                    </button>
+                                    <button type="button" class="btn btn-primary" onclick="inverteRota()">
+                                        <span class="glyphicon glyphicon-sort" aria-hidden="true"></span>
+                                    </button>
+                                </div>
+                            </section>
+    					</div>
+    				</div>
+    			</div>
+    		</div>
+    	</div>
+
+    	<script type="text/javascript" src="mapa.js"></script>
+    </body>
+</html>
